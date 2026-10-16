@@ -1,0 +1,190 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>For Nada ❤️</title>
+<style>
+*{box-sizing:border-box}
+body{
+  margin:0;background:#000;overflow:hidden;
+}
+canvas{display:block;width:100vw;height:100dvh}
+button{
+  position:fixed;bottom:24px;left:50%;
+  transform:translateX(-50%);
+  border:1px solid #ff72c0;
+  background:#200617;color:#fff0fa;
+  padding:12px 24px;border-radius:30px;
+  font-size:15px;cursor:pointer;
+  box-shadow:0 0 18px #ff168f55;
+}
+</style>
+</head>
+<body>
+<canvas id="heart"></canvas>
+<button id="again">♥ Play Again</button>
+
+<script>
+const canvas=document.getElementById("heart");
+const ctx=canvas.getContext("2d");
+
+let W,H,D,particles=[],stars=[],start=0;
+const COUNT=8500;
+
+function heart(t){
+  return {
+    x:16*Math.sin(t)**3,
+    y:-(13*Math.cos(t)-5*Math.cos(2*t)
+       -2*Math.cos(3*t)-Math.cos(4*t))
+  };
+}
+
+function setup(){
+  W=innerWidth;
+  H=innerHeight;
+  D=Math.min(devicePixelRatio||1,2);
+
+  canvas.width=W*D;
+  canvas.height=H*D;
+  ctx.setTransform(D,0,0,D,0,0);
+
+  const mask=document.createElement("canvas");
+  mask.width=W;
+  mask.height=H;
+  const m=mask.getContext("2d");
+
+  const scale=Math.min(W/37,H/43,20);
+  const cx=W/2,cy=H*.44;
+
+  // Heart outline
+  m.beginPath();
+  for(let i=0;i<=1400;i++){
+    const p=heart(i/1400*Math.PI*2);
+    if(i===0)m.moveTo(cx+p.x*scale,cy+p.y*scale);
+    else m.lineTo(cx+p.x*scale,cy+p.y*scale);
+  }
+  m.closePath();
+  m.strokeStyle="white";
+  m.lineWidth=Math.max(3,W*.006);
+  m.stroke();
+
+  // Handwritten-style glowing lettering
+  m.textAlign="center";
+  m.textBaseline="middle";
+  m.fillStyle="white";
+  m.strokeStyle="white";
+  m.lineJoin="round";
+
+  const font=Math.min(W*.105,43);
+
+  m.font=`italic ${font}px "Segoe Script","Brush Script MT",cursive`;
+  m.lineWidth=1.5;
+  m.strokeText("I love you",cx,cy-font*.12);
+  m.fillText("I love you",cx,cy-font*.12);
+
+  m.font=`italic bold ${font*1.25}px "Segoe Script","Brush Script MT",cursive`;
+  m.strokeText("nada",cx,cy+font*1.05);
+  m.fillText("nada",cx,cy+font*1.05);
+
+  // Small heart underneath the name
+  m.beginPath();
+  m.moveTo(cx,cy+font*2.05);
+  m.bezierCurveTo(cx-font*.65,cy+font*1.65,
+    cx-font*.75,cy+font*2.4,cx,cy+font*2.55);
+  m.bezierCurveTo(cx+font*.75,cy+font*2.4,
+    cx+font*.65,cy+font*1.65,cx,cy+font*2.05);
+  m.fill();
+
+  const data=m.getImageData(0,0,W,H).data;
+  const targets=[];
+
+  // Sample the actual heart and letters as particle positions
+  for(let y=0;y<H;y+=2){
+    for(let x=0;x<W;x+=2){
+      if(data[(y*W+x)*4+3]>20){
+        targets.push({x,y});
+      }
+    }
+  }
+
+  // Shuffle destinations
+  for(let i=targets.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [targets[i],targets[j]]=[targets[j],targets[i]];
+  }
+
+  particles=[];
+  for(let i=0;i<COUNT;i++){
+    const p=targets[i%targets.length];
+    particles.push({
+      x:Math.random()*W,
+      y:Math.random()*H,
+      tx:p.x+(Math.random()-.5)*1.2,
+      ty:p.y+(Math.random()-.5)*1.2,
+      r:Math.random()*1.65+.35,
+      speed:.08+Math.random()*.12,
+      phase:Math.random()*Math.PI*2
+    });
+  }
+
+  stars=Array.from({length:130},()=>({
+    x:Math.random()*W,
+    y:Math.random()*H,
+    r:Math.random()*1.3+.2,
+    phase:Math.random()*6.28
+  }));
+}
+
+function animate(now){
+  requestAnimationFrame(animate);
+  const t=(now-start)/1000;
+
+  ctx.fillStyle="rgba(0,0,0,.24)";
+  ctx.fillRect(0,0,W,H);
+
+  // Background stars
+  for(const s of stars){
+    const a=.2+.7*(.5+.5*Math.sin(t*2+s.phase));
+    ctx.fillStyle=`rgba(255,160,220,${a})`;
+    ctx.fillRect(s.x,s.y,s.r,s.r);
+  }
+
+  // The complete design pulses together
+  const pulse=1+.012*Math.sin(t*2.8);
+  ctx.save();
+  ctx.translate(W/2,H*.44);
+  ctx.scale(pulse,pulse);
+  ctx.translate(-W/2,-H*.44);
+
+  for(const p of particles){
+    p.x+=(p.tx-p.x)*p.speed;
+    p.y+=(p.ty-p.y)*p.speed;
+
+    const glow=.55+.45*Math.sin(t*3+p.phase);
+    ctx.beginPath();
+    ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+    ctx.fillStyle=`rgba(255,75,177,${.6+.4*glow})`;
+    ctx.shadowColor="#ff168f";
+    ctx.shadowBlur=4+glow*7;
+    ctx.fill();
+  }
+
+  ctx.restore();
+  ctx.shadowBlur=0;
+}
+
+function replay(){
+  setup();
+  ctx.clearRect(0,0,W,H);
+  start=performance.now();
+}
+
+document.getElementById("again").onclick=replay;
+addEventListener("resize",replay);
+replay();
+requestAnimationFrame(animate);
+</script>
+</body>
+</html>
